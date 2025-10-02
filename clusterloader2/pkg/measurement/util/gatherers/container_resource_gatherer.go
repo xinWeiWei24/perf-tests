@@ -114,6 +114,21 @@ func NewResourceUsageGatherer(c clientset.Interface, host string, port int, prov
 			return nil, fmt.Errorf("listing nodes error: %v", err)
 		}
 
+		filteredNodes := make([]corev1.Node, 0, len(nodeList.Items))
+		for _, node := range nodeList.Items {
+			isFakeNode := false
+			for key, value := range node.GetAnnotations() {
+				if key == "kwok.x-k8s.io/node" && value == "fake" {
+					isFakeNode = true
+					break // No need to check other annotations
+				}
+			}
+			if !isFakeNode {
+				filteredNodes = append(filteredNodes, node)
+			}
+		}
+		nodeList.Items = filteredNodes
+
 		masterNodes := sets.NewString()
 		for _, node := range nodeList.Items {
 			if pkgutil.LegacyIsMasterNode(&node) || pkgutil.IsControlPlaneNode(&node) {
