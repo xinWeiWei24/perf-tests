@@ -184,11 +184,11 @@ var (
 				OutputFilePrefix: "APIResponsiveness",
 				Parser:           parseRequestCountData,
 			}},
-			"LoadResponsiveness_Prometheus": []TestDescription{{
-				Name:             "load",
-				OutputFilePrefix: "APIResponsivenessPrometheus",
-				Parser:           parsePerfData,
-			}},
+			//"LoadResponsiveness_Prometheus": []TestDescription{{
+			//	Name:             "load",
+			//	OutputFilePrefix: "APIResponsivenessPrometheus",
+			//	Parser:           parsePerfData,
+			//}},
 			"LoadRequestCount_Prometheus": []TestDescription{{
 				Name:             "load",
 				OutputFilePrefix: "APIResponsivenessPrometheus",
@@ -213,6 +213,11 @@ var (
 				Name:             "load",
 				OutputFilePrefix: "MetricsForE2E",
 				Parser:           parseApiserverInitEventsCount,
+			}},
+			"LoadResponsiveness_Prometheus": []TestDescription{{ // Mock LoadResponsiveness_Prometheus in AKS cluster
+				Name:             "load",
+				OutputFilePrefix: "APIServerSLILatency_kusto",
+				Parser:           parseApiserverSLIDuration,
 			}},
 			"Responsiveness": []TestDescription{{
 				OutputFilePrefix: "APIResponsiveness",
