@@ -26,6 +26,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prometheus/common/model"
 	"k8s.io/klog"
 
 	"k8s.io/kubernetes/test/e2e/framework/metrics"
@@ -246,6 +247,125 @@ func parseApiserverInitEventsCount(data []byte, buildNumber int, testResult *Bui
 		delete(perfData.Labels, "__name__")
 		perfData.Data["InitEventsCount"] = float64(metric[i].Value)
 		testResult.Builds.AddBuildData(build, perfData)
+
+	}
+}
+
+// parseApiserverSLIDuration parses the apiserver_request_sli_duration_seconds_bucket metric
+// which measures the SLI (Service Level Indicator) latency for API server requests
+func parseApiserverSLIDuration(data []byte, buildNumber int, testResult *BuildData) {
+	testResult.Version = "v1"
+	build := fmt.Sprintf("%d", buildNumber)
+
+	var obj model.Samples
+	if err := json.Unmarshal(data, &obj); err != nil {
+		klog.Errorf("error parsing JSON in build %d: %v %s", buildNumber, err, string(data))
+		return
+	}
+
+	// First collect all histograms and their labels
+	histograms := make(map[string]map[float64]float64)
+
+	// Collect all metric data points
+	for i := range obj {
+
+		labels := map[string]string{
+			"resource":    string(obj[i].Metric["resource"]),
+			"verb":        string(obj[i].Metric["verb"]),
+			"scope":       string(obj[i].Metric["scope"]),
+			"subresource": string(obj[i].Metric["subresource"]),
+		}
+
+		key := createMapID(labels)
+
+		if histograms[key] == nil {
+			histograms[key] = make(map[float64]float64)
+		}
+
+		if le, ok := obj[i].Metric["le"]; ok {
+			if le == "+Inf" {
+				continue
+			}
+			leValue, err := strconv.ParseFloat(string(le), 64)
+			if err != nil {
+				klog.Errorf("error parsing le value in build %d: %v", buildNumber, err)
+				continue
+			}
+			value := float64(obj[i].Value)
+			histograms[key][leValue] = value
+		}
+	}
+
+	// For each unique combination of labels
+	//var sortedKeys []string
+	//for key := range histograms {
+	//	sortedKeys = append(sortedKeys, key)
+	//}
+	//sort.Strings(sortedKeys)
+
+	// Use sorted keys to have stable output order for every data retrieval.
+	//for _, key := range sortedKeys {
+	for key := range histograms {
+		hist := histograms[key]
+
+		// Sort bucket bounds for accurate percentile calculation
+		var sortedBounds []float64
+		for bound := range hist {
+			sortedBounds = append(sortedBounds, bound)
+		}
+		sort.Float64s(sortedBounds)
+
+		// Get the total count from the highest bucket
+		maxValue := float64(0)
+		if len(sortedBounds) > 0 {
+			maxValue = hist[sortedBounds[len(sortedBounds)-1]]
+		}
+
+		if maxValue == 0 {
+			continue // Skip if no data
+		}
+
+		// Calculate cutoff points for percentiles
+		p50Target := maxValue * 50.0 / 100.0
+		p90Target := maxValue * 90.0 / 100.0
+		p99Target := maxValue * 99.0 / 100.0
+
+		// Find the bucket that each percentile falls into
+		// Use minif logic - find the first bucket that exceeds the percentile cutoff
+		var p50, p90, p99 float64
+
+		for _, bound := range sortedBounds {
+			count := hist[bound]
+
+			if p50 == 0 && count > p50Target {
+				p50 = bound // Use the bucket boundary directly
+			}
+			if p90 == 0 && count > p90Target {
+				p90 = bound
+			}
+			if p99 == 0 && count > p99Target {
+				p99 = bound
+			}
+		}
+		// Create three separate data points that will appear as three lines
+		pData := perftype.DataItem{
+			Unit:   "ms",
+			Labels: make(map[string]string),
+			Data:   map[string]float64{"Perc50": p50 * 1000, "Perc90": p90 * 1000, "Perc99": p99 * 1000},
+		}
+
+		// Split key into labels
+		parts := strings.Split(key, "|")
+
+		for _, part := range parts {
+			kv := strings.SplitN(part, ":", 2)
+			if len(kv) == 2 {
+				pData.Labels[kv[0]] = kv[1]
+			}
+		}
+
+		// Add all three data points
+		testResult.Builds.AddBuildData(build, pData)
 	}
 }
 
