@@ -80,6 +80,7 @@
 
 {{$ADDITIONAL_MEASUREMENT_MODULES := DefaultParam .CL2_ADDITIONAL_MEASUREMENT_MODULES nil}}
 {{$ADDITIONAL_PHASES_MODULES := DefaultParam .CL2_ADDITIONAL_PHASES_MODULES nil}}
+{{$KUSTO_SLEEP := DefaultParam .KUSTO_SLEEP "15m"}}
 
 name: load
 namespace:
@@ -122,6 +123,12 @@ steps:
 - module:
     path: /modules/measurements.yaml
     params:
+      action: start
+- name: APIServerSLILatency_kusto_start
+  measurements:
+  - Identifier: APIServerSLILatencyKustoQuick
+    Method: APIServerSLILatency_kusto
+    Params:
       action: start
 
 {{if $ADDITIONAL_MEASUREMENT_MODULES}}
@@ -461,3 +468,22 @@ steps:
       complete: true
       testType: "policy-creation"
 {{end}}
+
+# Wait before querying Kusto to allow data to propagate.
+- name: APIServerSLILatency_kusto_wait
+  measurements:
+  - Identifier: QuickWait
+    Method: Sleep
+    Params:
+      duration: {{$KUSTO_SLEEP}}
+
+- name: APIServerSLILatency_kusto_wait
+  measurements:
+  - Identifier: APIServerSLILatencyKustoQuick
+    Method: APIServerSLILatency_kusto
+    Params:
+      action: gather
+      kustoSleep: {{$KUSTO_SLEEP}}
+      kustoEndpoint: ""
+      clusterID: ""
+      database: ""
