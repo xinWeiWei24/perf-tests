@@ -3,5 +3,5 @@ periodics:
   #name: ci-kubernetes-e2e-gce-scale-performance
   name: load
   tags:
-  - "perfDashPrefix: gce-5000Nodes"
+  - "perfDashPrefix: aks-5000Nodes"
   - "perfDashJobType: performance"
