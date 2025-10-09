@@ -1,1 +1,3 @@
 NODE_MODE: masterandnondaemons
+CL2_LOAD_TEST_THROUGHPUT: 50
+CL2_delete_TEST_THROUGHPUT: 50
