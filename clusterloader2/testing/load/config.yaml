@@ -12,7 +12,7 @@
 {{$PODS_PER_NODE := DefaultParam .PODS_PER_NODE 30}}
 {{$LOAD_TEST_THROUGHPUT := DefaultParam .CL2_LOAD_TEST_THROUGHPUT 10}}
 {{$DELETE_TEST_THROUGHPUT := DefaultParam .CL2_DELETE_TEST_THROUGHPUT $LOAD_TEST_THROUGHPUT}}
-{{$RATE_LIMIT_POD_CREATION := DefaultParam .CL2_RATE_LIMIT_POD_CREATION true}}
+{{$RATE_LIMIT_POD_CREATION := DefaultParam .CL2_RATE_LIMIT_POD_CREATION false}}
 {{$BIG_GROUP_SIZE := DefaultParam .BIG_GROUP_SIZE 250}}
 {{$MEDIUM_GROUP_SIZE := DefaultParam .MEDIUM_GROUP_SIZE 30}}
 {{$SMALL_GROUP_SIZE := DefaultParam .SMALL_GROUP_SIZE 5}}
@@ -88,17 +88,17 @@ namespace:
 tuningSets:
 - name: Sequence
   parallelismLimitedLoad:
-    parallelismLimit: 1
+    parallelismLimit: 100
 # TODO(https://github.com/kubernetes/perf-tests/issues/1024): This TuningSet is used only for pod-startup-latency, get rid of it
 # Uniform5qps: for each running phase, use 5 qps.
 - name: Uniform5qps
   qpsLoad:
-    qps: 5
+    qps: 3000
 # default is a tuningset that is meant to be used when we don't have any specific requirements on pace of operations.
 - name: default
   globalQPSLoad:
-    qps: {{$defaultQps}}
-    burst: 1
+    qps: 3000
+    burst: 5000
 - name: RandomizedSaturationTimeLimited
   RandomizedTimeLimitedLoad:
     timeLimit: {{$saturationTime}}s
@@ -150,15 +150,15 @@ steps:
       testType: "pod-creation"
 {{end}}
 
-- module:
-    path: modules/services/config.yaml
-    params:
-      actionName: "Creating"
-      namespaces: {{$namespaces}}
-      smallServicesPerNamespace: {{DivideInt (AddInt $smallDeploymentsPerNamespace 1) 2}}
-      mediumServicesPerNamespace: {{DivideInt (AddInt $mediumDeploymentsPerNamespace 1) 2}}
-      bigServicesPerNamespace: {{DivideInt (AddInt $bigDeploymentsPerNamespace 1) 2}}
-
+#- module:
+#    path: modules/services/config.yaml
+#    params:
+#      actionName: "Creating"
+#      namespaces: {{$namespaces}}
+#      smallServicesPerNamespace: {{DivideInt (AddInt $smallDeploymentsPerNamespace 1) 2}}
+#      mediumServicesPerNamespace: {{DivideInt (AddInt $mediumDeploymentsPerNamespace 1) 2}}
+#      bigServicesPerNamespace: {{DivideInt (AddInt $bigDeploymentsPerNamespace 1) 2}}
+#
 - name: Creating PriorityClass for DaemonSets
   phases:
   - replicasPerNamespace: 1
@@ -438,14 +438,14 @@ steps:
         - basename: daemonset-priorityclass
           objectTemplatePath: daemonset-priorityclass.yaml
 
-- module:
-    path: /modules/services/config.yaml
-    params:
-      actionName: "Deleting"
-      namespaces: {{$namespaces}}
-      smallServicesPerNamespace: 0
-      mediumServicesPerNamespace: 0
-      bigServicesPerNamespace: 0
+            #- module:
+            #    path: /modules/services/config.yaml
+            #    params:
+            #      actionName: "Deleting"
+            #      namespaces: {{$namespaces}}
+            #      smallServicesPerNamespace: 0
+            #      mediumServicesPerNamespace: 0
+            #      bigServicesPerNamespace: 0
 {{end}} # not EXIT_AFTER_EXEC
 
 {{if $ENABLE_INFORMER_LATENCY_TEST}}

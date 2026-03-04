@@ -31,8 +31,8 @@ import (
 
 const (
 	contentType = "application/vnd.kubernetes.protobuf"
-	qps         = 100
-	burst       = 200
+	qps         = 500
+	burst       = 1000
 )
 
 // PrepareConfig creates and initializes client config.

@@ -94,7 +94,12 @@ spec:
       terminationGracePeriodSeconds: 1
       # Add not-ready/unreachable tolerations for 15 minutes so that node
       # failure doesn't trigger pod deletion.
+      nodeSelector:
+        "kwok.x-k8s.io/node": "fake"
       tolerations:
+      - key: "kwok.x-k8s.io/node"
+        operator: "Exists"
+        effect: "NoSchedule"
       - key: "node.kubernetes.io/not-ready"
         operator: "Exists"
         effect: "NoExecute"
